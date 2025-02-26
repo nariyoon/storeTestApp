@@ -1,0 +1,14 @@
+CREATE TABLE postEntity (
+        id INTEGER PRIMARY KEY,
+        title TEXT,
+        body TEXT,
+        userId INTEGER
+);
+
+-- Queries
+
+insertPost:
+INSERT INTO postEntity VALUES ?;
+
+selectPostById:
+SELECT * FROM postEntity WHERE id = ? LIMIT 1;
