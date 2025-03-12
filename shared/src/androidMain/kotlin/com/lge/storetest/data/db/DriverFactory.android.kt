@@ -10,7 +10,7 @@ actual class DriverFactory(private val context: Context) {
         val driver = AndroidSqliteDriver(
             schema = AppDatabase.Schema.synchronous(),
             context = context,
-            name = "test.db"
+            name = "com.lge.storetest.data"
         )
         return driver
     }

@@ -1,7 +1,8 @@
 package com.lge.storetest.domain
 
 import com.lge.storetest.data.PostNetworkModel
-import db.com.lge.storetest.data.db.PostEntity
+import com.lge.storetest.data.db.PostEntity
+
 
 object PostExtensions {
 

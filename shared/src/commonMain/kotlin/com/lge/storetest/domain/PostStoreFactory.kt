@@ -4,11 +4,11 @@ import com.lge.storetest.data.PostNetworkModel
 import com.lge.storetest.data.PostOperations
 import com.lge.storetest.data.PostStore
 import com.lge.storetest.data.db.AppDatabase
+import com.lge.storetest.data.db.PostEntity
+import com.lge.storetest.data.db.PostFailedDelete
 import com.lge.storetest.domain.PostExtensions.asNetworkModel
 import com.lge.storetest.domain.PostExtensions.asPost
 import com.lge.storetest.domain.PostExtensions.asPostEntity
-import db.com.lge.storetest.data.db.PostEntity
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.flow
 import org.mobilenativefoundation.store.store5.Bookkeeper
 import org.mobilenativefoundation.store.store5.Converter
@@ -24,7 +24,14 @@ class PostStoreFactory(
 ) {
 
     fun create(): PostStore {
-        TODO()
+        return MutableStoreBuilder.from(
+            fetcher = createFetcher(),
+            sourceOfTruth = createSourceOfTruth(),
+            converter = createConverter()
+        ).build(
+            updater = createUpdater(),
+            bookkeeper = createBookkeeper()
+        )
     }
 
     private fun createFetcher(): Fetcher<Int, PostNetworkModel> = Fetcher.of { id ->
@@ -60,53 +67,28 @@ class PostStoreFactory(
             post = { _, updatedPost ->
                 val networkModel = updatedPost.asNetworkModel()
                 val success = client.updatePost(networkModel)
-                if (success) {
-                    UpdaterResult.Success.Typed(success)
-                } else {
-                    UpdaterResult.Error.Message("Something went wrong.")
-                }
+                UpdaterResult.Success.Typed(success)
             }
         )
 
     private fun createBookkeeper(): Bookkeeper<Int> =
         Bookkeeper.by(
             getLastFailedSync = { id ->
-                appDatabase.postBookkeepingQueries
-                    .selectMostRecentFailedSync(id).executeAsOneOrNull()?.let { failedSync ->
-                        timestampToEpochMilliseconds(timestamp = failedSync.timestamp)
-                    }
+                appDatabase.postBookkeepingQueries.getFailedDeletes().executeAsOne().timestamp
             },
             setLastFailedSync = { id, timestamp ->
-                try {
-                    trailsDatabase.postBookkeepingQueries.insertFailedSync(
-                        PostFailedSync(
-                            post_id = id,
-                            timestamp = epochMillisecondsToTimestamp(timestamp)
-                        )
-                    )
-                    true
-                } catch (e: SQLException) {
-                    // Handle the exception
-                    false
-                }
+                appDatabase.postBookkeepingQueries.insertFailedDelete(PostFailedDelete(id.toLong(), timestamp)
+                )
+                true
+
             },
             clear = { id ->
-                try {
-                    appDatabase.postBookkeepingQueries.clearByPostId(id)
-                    true
-                } catch (e: SQLException) {
-                    // Handle the exception
-                    false
-                }
+                appDatabase.postBookkeepingQueries.clearFailedDelete(id.toLong())
+                true
             },
             clearAll = {
-                try {
-                    appDatabase.postBookkeepingQueries.clearAll()
-                    true
-                } catch (e: SQLException) {
-                    // Handle the exception
-                    false
-                }
+                appDatabase.postBookkeepingQueries.clearAllFailedDeletes()
+                true
             }
         )
 }
